@@ -1,24 +1,29 @@
-# oci-skills-maven-plugin
+# agent-skills-maven-plugin
 
-A maven plugin that builds AI skills into OCI images and pushes them to OCI registries such as Sonatype Nexus
-Repository. The image format is compatible with [skillctl](https://github.com/redhat-et/skillimage), but `skillctl`,
+A maven plugin that builds, tests and publishes agent skills - as OCI images to OCI registries such as Sonatype Nexus
+Repository, as jars to maven repositories and to git repositories - and installs them into projects. The image format is compatible with [skillctl](https://github.com/redhat-et/skillimage), but `skillctl`,
 docker or podman are not needed.
+
+> **Renamed in 0.0.5:** up to 0.0.4 the plugin was named `oci-skills-maven-plugin` - with the groupId
+> `de.eitco.cicd.ociskills` and the goal prefix `oci-skills`. Use `de.eitco.cicd.agentskills:agent-skills-maven-plugin`
+> and `agent-skills:<goal>` now. Skill jars store their metadata below `META-INF/agent-skills/` instead of
+> `META-INF/oci-skills/` - jars of 0.0.3 and 0.0.4 can still be installed.
 
 With the packaging `skill` the plugin brings its own build lifecycle - skills are tested, built and pushed on
 `deploy`:
 
 ```text
-src/main/skills/<skill>/  --oci-skills:build-->  target/skill-oci/<skill>/ (OCI image layout)  --oci-skills:push-->  registry
+src/main/skills/<skill>/  --agent-skills:build-->  target/skill-oci/<skill>/ (OCI image layout)  --agent-skills:push-->  registry
 ```
 
 ## Modules
 
-| module                      | content                                                                    |
-|-----------------------------|----------------------------------------------------------------------------|
-| `oci-skills-core`           | SkillCard validation, deterministic tar layer, OCI config/manifest/layout, skill jars, installing skills and the lock file |
-| `oci-skills-registry-oras`  | `OciRegistryClient` implementation based on the ORAS java SDK - push and pull |
-| `oci-skills-git-jgit`       | `SkillRepositoryPublisher` implementation based on JGit - publishing skills to git repositories |
-| `oci-skills-maven-plugin`   | the goals and the lifecycle of the packaging `skill`                       |
+| module                       | content                                                                    |
+|------------------------------|----------------------------------------------------------------------------|
+| `agent-skills-core`          | SkillCard validation, deterministic tar layer, OCI config/manifest/layout, skill jars, installing skills and the lock file |
+| `agent-skills-registry-oras` | `OciRegistryClient` implementation based on the ORAS java SDK - push and pull |
+| `agent-skills-git-jgit`      | `SkillRepositoryPublisher` implementation based on JGit - publishing skills to git repositories |
+| `agent-skills-maven-plugin`  | the goals and the lifecycle of the packaging `skill`                       |
 
 The core has no dependency on maven, nexus, ORAS or JGit.
 
@@ -40,9 +45,9 @@ cannot be downloaded or are missing.
 <build>
     <plugins>
         <plugin>
-            <groupId>de.eitco.cicd.ociskills</groupId>
-            <artifactId>oci-skills-maven-plugin</artifactId>
-            <version>${oci-skills-maven-plugin.version}</version>
+            <groupId>de.eitco.cicd.agentskills</groupId>
+            <artifactId>agent-skills-maven-plugin</artifactId>
+            <version>${agent-skills-maven-plugin.version}</version>
             <extensions>true</extensions>
             <configuration>
                 <registry>registry.example.com</registry>
@@ -59,13 +64,13 @@ cannot be downloaded or are missing.
 
 | phase              | goals                                                                  |
 |--------------------|------------------------------------------------------------------------|
-| `test`             | `oci-skills:test` - static checks and script tests                     |
-| `package`          | `oci-skills:build`                                                     |
-| `verify`           | `oci-skills:archive`                                                   |
+| `test`             | `agent-skills:test` - static checks and script tests                   |
+| `package`          | `agent-skills:build`                                                   |
+| `verify`           | `agent-skills:archive`                                                 |
 | `install`          | `maven-install-plugin:install`                                         |
-| `deploy`           | `oci-skills:push`, `oci-skills:git-deploy`, then `maven-deploy-plugin:deploy` |
+| `deploy`           | `agent-skills:push`, `agent-skills:git-deploy`, then `maven-deploy-plugin:deploy` |
 
-`oci-skills:archive` packs all skills into the [skill jar](#skill-jar) `target/<finalName>.jar`, the main artifact of
+`agent-skills:archive` packs all skills into the [skill jar](#skill-jar) `target/<finalName>.jar`, the main artifact of
 the project - so `install` and `deploy` put the skills into maven repositories as well (type `skill`, extension
 `jar`). Every skill is attached on its own as well (type `jar`), so it can be [installed](#installing-skills) by other
 projects - its classifier is the skill name, suffixed like the tag, e.g. `nexus-test` or `nexus-test-draft`. Local
@@ -73,7 +78,7 @@ projects - its classifier is the skill name, suffixed like the tag, e.g. `nexus-
 case.
 
 > **Changed in 0.0.3:** up to 0.0.2 the main artifact was a tar file containing the OCI image layouts. It is a jar
-> with the skill files now - artifacts of 0.0.2 cannot be installed with `oci-skills:sync` or `oci-skills:pull`.
+> with the skill files now - artifacts of 0.0.2 cannot be installed with `agent-skills:sync` or `agent-skills:pull`.
 
 ### Status
 
@@ -141,9 +146,9 @@ The goals can be bound in any project as well:
 <build>
     <plugins>
         <plugin>
-            <groupId>de.eitco.cicd.ociskills</groupId>
-            <artifactId>oci-skills-maven-plugin</artifactId>
-            <version>${oci-skills-maven-plugin.version}</version>
+            <groupId>de.eitco.cicd.agentskills</groupId>
+            <artifactId>agent-skills-maven-plugin</artifactId>
+            <version>${agent-skills-maven-plugin.version}</version>
             <configuration>
                 <registry>registry.example.com</registry>
                 <repository>skills/acme</repository>
@@ -163,7 +168,7 @@ The goals can be bound in any project as well:
 </build>
 ```
 
-Bound in such a project, `oci-skills:archive` attaches the jar of all skills with classifier `skills` and every skill
+Bound in such a project, `agent-skills:archive` attaches the jar of all skills with classifier `skills` and every skill
 with its own classifier, like with packaging `skill`.
 
 ### Skill directories
@@ -190,7 +195,7 @@ This skill verifies publishing to an OCI registry.
 * further frontmatter fields (`license`, `allowed-tools`, ...) are allowed and put into the image unchanged.
 
 `mvn package` creates one OCI image layout per skill in `target/skill-oci/<skill directory name>`. With the
-configuration above and project version `0.0.1` `mvn oci-skills:push` pushes
+configuration above and project version `0.0.1` `mvn agent-skills:push` pushes
 `registry.example.com/skills/acme/nexus-test:0.0.1`.
 
 ### Generated files
@@ -237,7 +242,7 @@ the author's own and kept unchanged. A `status` in the frontmatter is kept like 
 ### Pushing only in designated builds
 
 Without the packaging `skill`, local `mvn package` or `mvn install` calls must never publish either. Bind
-`oci-skills:push` in a profile that is only activated by the CI pipeline:
+`agent-skills:push` in a profile that is only activated by the CI pipeline:
 
 ```xml
 <profiles>
@@ -246,8 +251,8 @@ Without the packaging `skill`, local `mvn package` or `mvn install` calls must n
         <build>
             <plugins>
                 <plugin>
-                    <groupId>de.eitco.cicd.ociskills</groupId>
-                    <artifactId>oci-skills-maven-plugin</artifactId>
+                    <groupId>de.eitco.cicd.agentskills</groupId>
+                    <artifactId>agent-skills-maven-plugin</artifactId>
                     <executions>
                         <execution>
                             <id>push-skill-image</id>
@@ -285,7 +290,7 @@ Without `registryServerId` the push is anonymous.
 
 ### Using skills with `npx skills`
 
-[`npx skills`](https://github.com/vercel-labs/skills) installs skills from git repositories. `oci-skills:git-deploy`
+[`npx skills`](https://github.com/vercel-labs/skills) installs skills from git repositories. `agent-skills:git-deploy`
 publishes the built skills into such a repository - configured with `gitUrl`, otherwise the goal does nothing:
 
 ```xml
@@ -320,14 +325,14 @@ On self-hosted git servers the url has to end with `.git` - otherwise `npx skill
 
 ### Installing skills
 
-Projects using skills do not need to commit them - `oci-skills:sync` installs them from maven repositories or OCI
+Projects using skills do not need to commit them - `agent-skills:sync` installs them from maven repositories or OCI
 registries into `.claude/skills`:
 
 ```xml
 <plugin>
-    <groupId>de.eitco.cicd.ociskills</groupId>
-    <artifactId>oci-skills-maven-plugin</artifactId>
-    <version>${oci-skills-maven-plugin.version}</version>
+    <groupId>de.eitco.cicd.agentskills</groupId>
+    <artifactId>agent-skills-maven-plugin</artifactId>
+    <version>${agent-skills-maven-plugin.version}</version>
     <configuration>
         <sources>
             <source>
@@ -373,8 +378,8 @@ covers a whole registry or maven repository. Every source maps it to its own coo
 
 | `type`  | the skill is                                                             | as created by        |
 |---------|--------------------------------------------------------------------------|----------------------|
-| `maven` | the artifact `<groupId>:<artifactId>:jar:<classifier>[-<status>]:<version>` | `oci-skills:archive` |
-| `oci`   | the image `<registry>/<repository>/<name>:<version>[-<status>]`          | `oci-skills:push`    |
+| `maven` | the artifact `<groupId>:<artifactId>:jar:<classifier>[-<status>]:<version>` | `agent-skills:archive` |
+| `oci`   | the image `<registry>/<repository>/<name>:<version>[-<status>]`          | `agent-skills:push`  |
 
 For OCI sources the `<repository>` of the skill is used as it is. `groupId`, `artifactId` and `classifier` of maven
 sources - and the `<repository>` of OCI sources, which is used for skills without `<repository>` - are templates with
@@ -402,7 +407,7 @@ parts and may be empty. Repeated dots as well as dots and dashes at the start or
 `com.example.{repository.parent}` with the repository `skills` is `com.example`, `skills-{name[1:]}` for the skill
 `acme/solo` is `skills`.
 
-`classifier` defaults to `{name}`, the classifier `oci-skills:archive` attaches a skill with. Unless the status is
+`classifier` defaults to `{name}`, the classifier `agent-skills:archive` attaches a skill with. Unless the status is
 `published` it is suffixed with the status, like the tag of an image. With the example above `acme/nexus-admin-test`
 is the artifact `com.example.teams.acme:skills:jar:nexus-admin-test` and the image
 `registry.example.com/teams/acme/skills/nexus-admin-test`. A source that cannot locate a skill fails the build - e.g.
@@ -474,8 +479,8 @@ artifact `com.example.acme:epsilon:jar`:
   </skill>
   ```
 
-Do not put `<repository>` into the plugin level `<configuration>`: it is the parameter of `oci-skills:push` and
-`oci-skills:pull`, so it would set the push target as well.
+Do not put `<repository>` into the plugin level `<configuration>`: it is the parameter of `agent-skills:push` and
+`agent-skills:pull`, so it would set the push target as well.
 
 Maven sources use the repositories, mirrors and credentials of the build, including the local repository and the
 reactor. OCI sources take their credentials from the `<server>` with the id `registryServerId` - the versions of a
@@ -540,13 +545,13 @@ the requested skill - namespace and name of its annotations must match the `id`.
 
 **Lock file.** The resolved version and the digest of the image are written to `skills.lock.yaml` next to the POM.
 Commit it: as long as the request of a skill does not change, `sync` installs exactly the locked image - newer versions
-are only taken by `mvn oci-skills:update` (all skills) or `mvn oci-skills:update -Dskill=nexus-test`. A locked image
+are only taken by `mvn agent-skills:update` (all skills) or `mvn agent-skills:update -Dskill=nexus-test`. A locked image
 may come from any source, e.g. from the maven repository though it was resolved from the registry - the artifact and
 the image of the same build have the same digest. The source it was resolved from is asked first, then all others. A
-source delivering another digest fails the build - run `oci-skills:update` if the skill was rebuilt intentionally.
+source delivering another digest fails the build - run `agent-skills:update` if the skill was rebuilt intentionally.
 
 ```yaml
-# generated by oci-skills-maven-plugin - commit it, update it with mvn oci-skills:update
+# generated by agent-skills-maven-plugin - commit it, update it with mvn agent-skills:update
 skills:
 - id: acme/nexus-test
   requested:
@@ -562,7 +567,7 @@ skills:
 `requested` is the request the entry was resolved for - a request with another `version`, `status`, `repository`,
 `location` or `source` is resolved again. `repository` and `location` are only written for skills requested with
 one. The entries are sorted by id and the file is only written if its content changes. An invalid lock file
-fails the build - fix it, or delete it and run `oci-skills:update`.
+fails the build - fix it, or delete it and run `agent-skills:update`.
 
 **Installed skills.** Every skill is installed into `.claude/skills/<name>/` and marked with `.oci-skill.json`. Only
 marked directories are replaced or removed, so skills written by hand can live in the same directory - a requested
@@ -570,7 +575,7 @@ skill with the name of such a directory fails the build. Installed skills are up
 one - `sync` does not even access the sources then. Skills of the lock file that are no longer requested are removed.
 Every installed skill contains a `.gitignore` with `*`, so it is never checked in - `.claude/skills/.gitignore`
 is not touched. `.oci-skill.json` records where the skill comes from - `id`, `version`, `status`, `digest` and the
-`source`, i.e. the id of the source or, for `oci-skills:pull`, the artifact coordinates or image reference.
+`source`, i.e. the id of the source or, for `agent-skills:pull`, the artifact coordinates or image reference.
 
 Every skill is installed into the directory of its name, so a skill requested twice and two skills with the same name
 in different namespaces fail the build.
@@ -579,18 +584,18 @@ in different namespaces fail the build.
 with every build. A single skill can be installed from the command line without lock file - `sync` keeps it:
 
 ```shell
-mvn oci-skills:pull -Dskill=acme/nexus-test             # highest version from the configured sources
-mvn oci-skills:pull -Dskill=acme/nexus-test:1.2.0 -Dskill.pull.repository=teams/acme/skills
-mvn oci-skills:pull -Dskill.artifact=com.example.acme:acme-skills:1.2.0:nexus-test
-mvn oci-skills:pull -Dskill.artifact=com.example.acme:epsilon:1.2.0   # the main artifact with a single skill
-mvn oci-skills:pull -Dskill.image=registry.example.com/skills/acme/nexus-test:1.2.0
+mvn agent-skills:pull -Dskill=acme/nexus-test             # highest version from the configured sources
+mvn agent-skills:pull -Dskill=acme/nexus-test:1.2.0 -Dskill.pull.repository=teams/acme/skills
+mvn agent-skills:pull -Dskill.artifact=com.example.acme:acme-skills:1.2.0:nexus-test
+mvn agent-skills:pull -Dskill.artifact=com.example.acme:epsilon:1.2.0   # the main artifact with a single skill
+mvn agent-skills:pull -Dskill.image=registry.example.com/skills/acme/nexus-test:1.2.0
 ```
 
 `-Dskill.artifact` and `-Dskill.image` work without project.
 
 ## Goals
 
-### `oci-skills:build` (default phase `package`)
+### `agent-skills:build` (default phase `package`)
 
 | parameter         | property                | default                                 | description                                                           |
 |-------------------|-------------------------|-----------------------------------------|-----------------------------------------------------------------------|
@@ -603,12 +608,12 @@ mvn oci-skills:pull -Dskill.image=registry.example.com/skills/acme/nexus-test:1.
 | `version`         | `skill.version`         | `${project.version}`                    | version of all skills, determines the tag                             |
 | `generatedSkillsDirectory` | `skill.generatedSkillsDirectory` | `${project.build.directory}/generated-skills` | the generated `skill.yaml` and `SKILL.md` are written to `<dir>/<skill>/` |
 
-### `oci-skills:push` (default phase `deploy`)
+### `agent-skills:push` (default phase `deploy`)
 
 | parameter            | property                       | default                                | description                                          |
 |----------------------|--------------------------------|----------------------------------------|------------------------------------------------------|
 | `skillsDirectory`    | `skill.skillsDirectory`        | `${project.basedir}/src/main/skills`   | directory with one subdirectory per skill            |
-| `outputDirectory`    | `skill.outputDirectory`        | `${project.build.directory}/skill-oci` | the OCI image layouts created by `oci-skills:build`  |
+| `outputDirectory`    | `skill.outputDirectory`        | `${project.build.directory}/skill-oci` | the OCI image layouts created by `agent-skills:build`  |
 | `registry`           | `skill.registry`               |                                        | registry host, optionally with port                  |
 | `repository`         | `skill.repository`             |                                        | repository path, the skill name is appended          |
 | `registryServerId`   | `skill.registryServerId`       |                                        | id of the `<server>` in `settings.xml`               |
@@ -622,12 +627,12 @@ mvn oci-skills:pull -Dskill.image=registry.example.com/skills/acme/nexus-test:1.
 
 Additional CAs are trusted in addition to the JVM defaults. TLS verification cannot be disabled.
 
-### `oci-skills:git-deploy` (default phase `deploy`)
+### `agent-skills:git-deploy` (default phase `deploy`)
 
 | parameter            | property                       | default                                         | description                                        |
 |----------------------|--------------------------------|-------------------------------------------------|----------------------------------------------------|
 | `skillsDirectory`    | `skill.skillsDirectory`        | `${project.basedir}/src/main/skills`            | directory with one subdirectory per skill          |
-| `outputDirectory`    | `skill.outputDirectory`        | `${project.build.directory}/skill-oci`          | the OCI image layouts created by `oci-skills:build` |
+| `outputDirectory`    | `skill.outputDirectory`        | `${project.build.directory}/skill-oci`          | the OCI image layouts created by `agent-skills:build` |
 | `gitUrl`             | `skill.git.url`                |                                                 | url of the repository - without it the goal does nothing |
 | `gitServerId`        | `skill.git.serverId`           |                                                 | id of the `<server>` in `settings.xml`             |
 | `gitBranch`          | `skill.git.branch`             | `main`                                          | branch for releases - created if missing           |
@@ -636,13 +641,13 @@ Additional CAs are trusted in addition to the JVM defaults. TLS verification can
 | `gitTag`             | `skill.git.tag`                | `${project.artifactId}-${project.version}`      | tag of a release - empty for no tag                |
 | `gitCommitMessage`   | `skill.git.commitMessage`      | `release ${project.artifactId} ${project.version}` | message of commit and tag                       |
 | `gitStatuses`        |                                | `published`                                     | statuses of the skills to deploy                   |
-| `gitAuthorName`      | `skill.git.authorName`         | `oci-skills-maven-plugin`                       | author, committer and tagger                       |
-| `gitAuthorEmail`     | `skill.git.authorEmail`        | `oci-skills-maven-plugin@noreply.invalid`       | email of author, committer and tagger              |
+| `gitAuthorName`      | `skill.git.authorName`         | `agent-skills-maven-plugin`                     | author, committer and tagger                       |
+| `gitAuthorEmail`     | `skill.git.authorEmail`        | `agent-skills-maven-plugin@noreply.invalid`     | email of author, committer and tagger              |
 | `gitAttempts`        | `skill.git.attempts`           | `3`                                             | attempts if the branch moved in the meantime       |
 | `gitWorkDirectory`   | `skill.git.workDirectory`      | `${project.build.directory}/skill-git`          | the clone - deleted before cloning                 |
 | `skip`               | `skill.git.skip`               | `false`                                         | skip the goal                                      |
 
-### `oci-skills:test` (default phase `test`)
+### `agent-skills:test` (default phase `test`)
 
 | parameter             | property                      | default                                  | description                                        |
 |-----------------------|-------------------------------|------------------------------------------|----------------------------------------------------|
@@ -651,9 +656,9 @@ Additional CAs are trusted in addition to the JVM defaults. TLS verification can
 | `reportsDirectory`    | `skill.test.reportsDirectory` | `${project.build.directory}/surefire-reports` | the surefire reports are written to it        |
 | `skip`                | `skill.test.skip`             | `false`                                  | skip the tests - `skipTests` and `maven.test.skip` work as well |
 
-`includes`, `excludes`, `executables`, `namespace` and `version` are the same as for `oci-skills:build`.
+`includes`, `excludes`, `executables`, `namespace` and `version` are the same as for `agent-skills:build`.
 
-### `oci-skills:archive` (default phase `verify`)
+### `agent-skills:archive` (default phase `verify`)
 
 | parameter     | property             | default                                                     | description                 |
 |---------------|----------------------|-------------------------------------------------------------|-----------------------------|
@@ -663,7 +668,7 @@ Without packaging `skill` the jar is attached with classifier `skills`. Every sk
 `<name>` - suffixed with `-draft` or `-testing` unless its status is `published` - next to `archiveFile`, e.g.
 `target/<finalName>-nexus-test.jar`.
 
-### `oci-skills:sync` (default phase `initialize`, not bound)
+### `agent-skills:sync` (default phase `initialize`, not bound)
 
 | parameter          | property                 | default                                    | description                                          |
 |--------------------|--------------------------|--------------------------------------------|------------------------------------------------------|
@@ -678,13 +683,13 @@ A `<source>` has an `id`, a `type` (`maven` or `oci`) and `groupId`, `artifactId
 `classifier` (`maven`, default `{name}`) or `registry`, `repository` (optional), `registryServerId`,
 `caCertificates` and `allowPlainHttp` (`oci`).
 
-### `oci-skills:update`
+### `agent-skills:update`
 
-Like `oci-skills:sync`, but resolves the skills again even if they are locked. `-Dskill=<ids or names>` - comma
+Like `agent-skills:sync`, but resolves the skills again even if they are locked. `-Dskill=<ids or names>` - comma
 separated - restricts this to the given skills, naming a skill that is not requested fails. Maven sources are checked
 for new versions regardless of their update policy, like with `-U`.
 
-### `oci-skills:pull`
+### `agent-skills:pull`
 
 | parameter          | property                    | default     | description                                                    |
 |--------------------|-----------------------------|-------------|----------------------------------------------------------------|
@@ -697,13 +702,13 @@ for new versions regardless of their update policy, like with `-U`.
 | `registryServerId` | `skill.registryServerId`    |             | with `image`: id of the `<server>` in `settings.xml`           |
 | `allowPlainHttp`   | `skill.pull.allowPlainHttp` | `false`     | with `image`: connect without TLS - for local test registries only |
 
-`sources` and `installDirectory` are the same as for `oci-skills:sync`. Exactly one of `skill`, `artifact` and
+`sources` and `installDirectory` are the same as for `agent-skills:sync`. Exactly one of `skill`, `artifact` and
 `image` must be set.
 
 * `skill` needs `<sources>` and therefore a project. The version may be a range like for `<skill>` - without version
   the highest version is installed.
 * `image` trusts the CAs of the JVM only - `caCertificates` are not supported.
-* `skill.registryServerId` is the same property as for `oci-skills:push`.
+* `skill.registryServerId` is the same property as for `agent-skills:push`.
 
 ## Image format
 
@@ -732,7 +737,7 @@ the next `\n---`, the rest is split at white space as defined by go's `unicode.I
 
 ### Skill jar
 
-`oci-skills:archive` stores the skills in maven repositories as plain jars - the jar of a single skill and the jar of
+`agent-skills:archive` stores the skills in maven repositories as plain jars - the jar of a single skill and the jar of
 all skills have the same layout:
 
 ```
@@ -740,8 +745,8 @@ nexus-test/                                   # the skill files, exactly as in t
 nexus-test/SKILL.md                           #   modes 0644, 0755 for directories and executables
 nexus-test/skill.yaml
 nexus-test/scripts/run.sh
-META-INF/oci-skills/nexus-test/manifest.json  # the manifest of the image, byte identical
-META-INF/oci-skills/nexus-test/config.json    # the config of the image, byte identical
+META-INF/agent-skills/nexus-test/manifest.json  # the manifest of the image, byte identical
+META-INF/agent-skills/nexus-test/config.json    # the config of the image, byte identical
 ```
 
 * the directory is the `name` of the skill - unpacking a jar into `.claude/skills`, e.g. with `dependency:unpack`,

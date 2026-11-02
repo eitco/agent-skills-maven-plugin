@@ -8,14 +8,14 @@
         <version>1.1.1</version>
     </parent>
 
-    <groupId>de.eitco.cicd.ociskills</groupId>
-    <artifactId>oci-skills-maven-plugin-parent</artifactId>
+    <groupId>de.eitco.cicd.agentskills</groupId>
+    <artifactId>agent-skills-maven-plugin-parent</artifactId>
     <version>0.0.5-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>oci skills maven plugin parent</name>
-    <description>builds AI skills as OCI images and pushes them to OCI registries</description>
-    <url>https://github.com/eitco/oci-skills-maven-plugin</url>
+    <name>agent skills maven plugin parent</name>
+    <description>builds, tests and publishes agent skills to OCI registries, maven and git repositories</description>
+    <url>https://github.com/eitco/agent-skills-maven-plugin</url>
 
 
     <developers>
@@ -27,17 +27,17 @@
 
 
     <scm>
-        <url>https://github.com/eitco/oci-skills-maven-plugin.git</url>
-        <connection>scm:git:https://github.com/eitco/oci-skills-maven-plugin.git</connection>
-        <developerConnection>scm:git:https://github.com/eitco/oci-skills-maven-plugin.git</developerConnection>
+        <url>https://github.com/eitco/agent-skills-maven-plugin.git</url>
+        <connection>scm:git:https://github.com/eitco/agent-skills-maven-plugin.git</connection>
+        <developerConnection>scm:git:https://github.com/eitco/agent-skills-maven-plugin.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
     <modules>
-        <module>oci-skills-core</module>
-        <module>oci-skills-registry-oras</module>
-        <module>oci-skills-git-jgit</module>
-        <module>oci-skills-maven-plugin</module>
+        <module>agent-skills-core</module>
+        <module>agent-skills-registry-oras</module>
+        <module>agent-skills-git-jgit</module>
+        <module>agent-skills-maven-plugin</module>
     </modules>
 
     <properties>
@@ -55,18 +55,18 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>de.eitco.cicd.ociskills</groupId>
-                <artifactId>oci-skills-core</artifactId>
+                <groupId>de.eitco.cicd.agentskills</groupId>
+                <artifactId>agent-skills-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>de.eitco.cicd.ociskills</groupId>
-                <artifactId>oci-skills-registry-oras</artifactId>
+                <groupId>de.eitco.cicd.agentskills</groupId>
+                <artifactId>agent-skills-registry-oras</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>de.eitco.cicd.ociskills</groupId>
-                <artifactId>oci-skills-git-jgit</artifactId>
+                <groupId>de.eitco.cicd.agentskills</groupId>
+                <artifactId>agent-skills-git-jgit</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
