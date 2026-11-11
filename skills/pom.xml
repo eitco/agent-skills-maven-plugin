@@ -33,7 +33,6 @@
                             <goal>test</goal>
                             <goal>build</goal>
                             <goal>archive</goal>
-                            <goal>install</goal>
                             <goal>push</goal>
                         </goals>
                     </execution>
