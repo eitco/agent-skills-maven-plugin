@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.eitco.cicd.agentskills</groupId>
+        <artifactId>agent-skills-maven-plugin-parent</artifactId>
+        <version>0.0.5-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>agent-skills-skills</artifactId>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>de.eitco.cicd.agentskills</groupId>
+                <artifactId>agent-skills-maven-plugin</artifactId>
+                <version>${project.version}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <registry>ghcr.io</registry>
+                    <registryServerId>github</registryServerId>
+                    <repository>eitco/cicd/skills</repository>
+                    <namespace>cicd</namespace>
+                    <version>${project.version}</version>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

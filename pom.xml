@@ -34,10 +34,11 @@
     </scm>
 
     <modules>
-        <module>agent-skills-core</module>
-        <module>agent-skills-registry-oras</module>
-        <module>agent-skills-git-jgit</module>
-        <module>agent-skills-maven-plugin</module>
+        <module>core</module>
+        <module>registry-oras</module>
+        <module>git-jgit</module>
+        <module>maven-plugin</module>
+        <module>skills</module>
     </modules>
 
     <properties>
