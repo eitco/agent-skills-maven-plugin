@@ -11,6 +11,7 @@
     </parent>
 
     <artifactId>agent-skills-skills</artifactId>
+    <packaging>pom</packaging>
 
     <build>
         <plugins>
@@ -18,7 +19,6 @@
                 <groupId>de.eitco.cicd.agentskills</groupId>
                 <artifactId>agent-skills-maven-plugin</artifactId>
                 <version>${project.version}</version>
-                <extensions>true</extensions>
                 <configuration>
                     <registry>ghcr.io</registry>
                     <registryServerId>github</registryServerId>
@@ -26,6 +26,18 @@
                     <namespace>cicd</namespace>
                     <version>${project.version}</version>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>lifecycle</id>
+                        <goals>
+                            <goal>test</goal>
+                            <goal>build</goal>
+                            <goal>archive</goal>
+                            <goal>install</goal>
+                            <goal>push</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
