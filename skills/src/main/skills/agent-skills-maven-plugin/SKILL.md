@@ -1,35 +1,40 @@
 ---
 name: agent-skills-maven-plugin
 description: >-
-  Erklärt die Nutzung des agent-skills-maven-plugin (de.eitco.cicd:agent-skills-maven-plugin), das
-  Agent-Skills (Verzeichnis mit SKILL.md) als skillctl-kompatible OCI-Images baut, testet und in
-  OCI-Registries wie Nexus pusht – ohne docker, podman oder skillctl. Heranziehen, sobald ein
-  Projekt mit `<packaging>skill</packaging>` angelegt oder geändert wird, Skills unter
-  src/main/skills abgelegt, das SKILL.md-Frontmatter (name, description, status) geschrieben,
-  eine tests.yaml für Skript-Tests erstellt, Registry/Repository/Credentials für den Push
-  konfiguriert, ein Goal (build, test, archive, push) gebunden oder ein Fehler des Plugins
-  untersucht wird (Validierung, statische Checks, Push, TLS). Deckt Aktivierung und Lifecycle,
-  Projektlayout, Frontmatter-Regeln, generierte skill.yaml, Status und Tags, statische Checks,
-  Skript-Tests, Credentials, alle Parameter sowie die Stolpersteine ab.
+  Erklärt, wie man mit dem agent-skills-maven-plugin (de.eitco.cicd.agentskills:agent-skills-maven-plugin,
+  Prefix agent-skills) Agent-Skills (Verzeichnis mit SKILL.md) baut, testet und veröffentlicht: als
+  skillctl-kompatible OCI-Images in Registries wie Nexus, als Skill-Jars in Maven-Repositories und in
+  Git-Repositories für npx skills – ohne docker, podman oder skillctl. Heranziehen, sobald ein Projekt
+  mit `<packaging>skill</packaging>` angelegt oder geändert wird, Skills unter src/main/skills abgelegt,
+  das SKILL.md-Frontmatter (name, description, status) geschrieben, eine tests.yaml erstellt,
+  Registry/Repository/Credentials für den Push oder gitUrl für git-deploy konfiguriert, ein Goal
+  (test, build, archive, push, git-deploy) gebunden oder ein Fehler dabei untersucht wird (Validierung,
+  statische Checks, Push, TLS, Git). Das Installieren von Skills in ein Projekt (sync, update, pull,
+  skills.lock.yaml, .claude/skills) beschreibt agent-skills-maven-plugin-install.
 ---
 
-# Nutzung des agent-skills-maven-plugin
+# Skills bauen und veröffentlichen mit dem agent-skills-maven-plugin
 
-Das `agent-skills-maven-plugin` (`de.eitco.cicd:agent-skills-maven-plugin`, Prefix `agent-skills`) baut
-**Agent-Skills** im [agent skills](https://agentskills.io)-Format zu **OCI-Images** und pusht sie in
-OCI-Registries (z. B. Sonatype Nexus). Das Image-Format ist kompatibel zu
-[skillctl](https://github.com/redhat-et/skillimage); `skillctl`, docker oder podman werden nicht benötigt.
+Das `agent-skills-maven-plugin` (`de.eitco.cicd.agentskills:agent-skills-maven-plugin`, Prefix `agent-skills`)
+baut **Agent-Skills** im [agent skills](https://agentskills.io)-Format und veröffentlicht sie auf drei Wegen:
+
+* als **OCI-Images** in OCI-Registries (z. B. Sonatype Nexus), kompatibel zu
+  [skillctl](https://github.com/redhat-et/skillimage) – `skillctl`, docker oder podman werden nicht benötigt,
+* als **Skill-Jars** in Maven-Repositories (`install`/`deploy`),
+* in **Git-Repositories**, aus denen [`npx skills`](https://github.com/vercel-labs/skills) installiert.
 
 ```text
-src/main/skills/<skill>/  --agent-skills:build-->  target/skill-oci/<skill>/ (OCI image layout)  --agent-skills:push-->  registry
+src/main/skills/<skill>/  --build-->  target/skill-oci/<skill>/ (OCI image layout)  --push-->        registry
+                                                                                     --git-deploy-->  git
+                                      --archive-->  target/<finalName>.jar  --deploy-->  maven repository
 ```
 
-Dieser Skill beschreibt das **Verwenden/Konfigurieren** des Plugins. Wer das Plugin selbst
-erweitert, siehe [[maven-plugin-authoring]]. Für das Anlegen des Docker-Repositorys in Nexus siehe
-[[nexus-repository-management]].
+Dieser Skill behandelt die **Produzenten-Seite**. Wie ein Projekt veröffentlichte Skills nach `.claude/skills`
+installiert (`sync`, `update`, `pull`), steht in [[agent-skills-maven-plugin-install]]. Wer das Plugin selbst
+erweitert: [[maven-plugin-authoring]]. Docker-Repository in Nexus anlegen: [[nexus-repository-management]].
 
-> Alle Angaben sind am Quellcode verifiziert (Mojos in `agent-skills-maven-plugin`, Regeln in
-> `agent-skills-core`).
+> **Umbenannt in 0.0.5:** bis 0.0.4 hieß das Plugin `oci-skills-maven-plugin` (groupId `de.eitco.cicd.ociskills`,
+> Prefix `oci-skills`). Jars von 0.0.3/0.0.4 lassen sich weiter installieren.
 
 ---
 
@@ -63,22 +68,25 @@ erweitert, siehe [[maven-plugin-authoring]]. Für das Anlegen des Docker-Reposit
 
 Lifecycle des Packagings `skill`:
 
-| Phase     | Goals                                                   |
-|-----------|---------------------------------------------------------|
-| `test`    | `agent-skills:test` – statische Checks und Skript-Tests   |
-| `package` | `agent-skills:build` – ein OCI-Image-Layout pro Skill     |
-| `verify`  | `agent-skills:archive` – alle Layouts als `.tar`          |
-| `install` | `maven-install-plugin:install`                          |
-| `deploy`  | `agent-skills:push`, danach `maven-deploy-plugin:deploy`  |
+| Phase     | Goals                                                                               |
+|-----------|-------------------------------------------------------------------------------------|
+| `test`    | `agent-skills:test` – statische Checks und Skript-Tests                              |
+| `package` | `agent-skills:build` – ein OCI-Image-Layout pro Skill                                |
+| `verify`  | `agent-skills:archive` – Skill-Jar aller Skills plus ein Jar pro Skill              |
+| `install` | `maven-install-plugin:install`                                                      |
+| `deploy`  | `agent-skills:push`, `agent-skills:git-deploy`, danach `maven-deploy-plugin:deploy` |
 
-* Das Archiv `target/<finalName>.tar` ist das **Hauptartefakt** (Typ `skill`, Extension `tar`) –
-  `install`/`deploy` legen die Skills also zusätzlich in Maven-Repositories ab.
-* `mvn install` pusht **nie**, der Push hängt an `deploy`. `-Dskill.push.skip=true` unterdrückt ihn immer.
+* Hauptartefakt ist `target/<finalName>.jar` (Typ `skill`, Extension `jar`) mit allen Skills.
+* Zusätzlich wird **jeder Skill einzeln** als Jar angehängt (Typ `jar`), Classifier = Skill-Name, bei Status
+  ≠ `published` mit Suffix: `nexus-test`, `nexus-test-draft`. Diese Jars installieren andere Projekte.
+* `mvn install` veröffentlicht **nie** in Registry oder Git – Push und git-deploy hängen an `deploy`.
+* `-Dskill.push.skip=true` unterdrückt den OCI-Push, `-Dskill.git.skip=true` das git-deploy – unabhängig voneinander.
+* `git-deploy` tut ohne `gitUrl` nichts, kann im Lifecycle also unkonfiguriert bleiben.
 
 ## 2. Nutzung ohne Packaging `skill`
 
 Die Goals lassen sich in jedem Projekt binden. Default-Phasen: `test`→test, `build`→package,
-`archive`→verify, `push`→deploy.
+`archive`→verify, `push`/`git-deploy`→deploy.
 
 ```xml
 <plugin>
@@ -97,13 +105,14 @@ Die Goals lassen sich in jedem Projekt binden. Default-Phasen: `test`→test, `b
             <goals>
                 <goal>test</goal>
                 <goal>build</goal>
+                <goal>archive</goal>
             </goals>
         </execution>
     </executions>
 </plugin>
 ```
 
-* `archive` hängt das Tar hier mit Classifier **`skills`** an (Typ `tar`).
+* `archive` hängt das Jar aller Skills hier mit Classifier **`skills`** an, jeden Skill wie oben mit eigenem Classifier.
 * `push` **nur in einem CI-Profil** binden, damit lokale Builds nie veröffentlichen:
 
 ```xml
@@ -178,7 +187,7 @@ Regeln (alle Verstöße werden gesammelt gemeldet):
 ## 5. Generierte Dateien
 
 `agent-skills:build` erzeugt pro Skill in `target/generated-skills/<skill>/` zwei Dateien, die **statt**
-der Quellen ins Image gehen (die Quellen werden nie verändert):
+der Quellen ins Image (und ins Jar) gehen – die Quellen werden nie verändert:
 
 `skill.yaml` (SkillCard):
 
@@ -199,14 +208,15 @@ Top-Level-Felder **angehängt**; übrige Felder behalten ihre Reihenfolge, alles
 `---` bleibt byte-genau erhalten. **Kommentare im Frontmatter gehen verloren.**
 
 `namespace` und `version` gelten für alle Skills eines Builds und können aus einer Parent-POM geerbt werden.
+Namespace und Name bilden die Skill-ID `<namespace>/<name>`, über die Konsumenten den Skill anfordern.
 
 ## 6. Status und Tags
 
-| `status` im Frontmatter      | Tag                 | Annotation `io.skillimage.status` |
-|------------------------------|---------------------|-----------------------------------|
-| – (default) oder `published` | `<version>`         | `published`                       |
-| `testing`                    | `<version>-testing` | `testing`                         |
-| `draft`                      | `<version>-draft`   | `draft`                           |
+| `status` im Frontmatter      | Tag / Classifier-Suffix | Annotation `io.skillimage.status` |
+|------------------------------|-------------------------|-----------------------------------|
+| – (default) oder `published` | `<version>`             | `published`                       |
+| `testing`                    | `<version>-testing`     | `testing`                         |
+| `draft`                      | `<version>-draft`       | `draft`                           |
 
 * SNAPSHOT-Versionen werden unverändert verwendet: `1.0.0-SNAPSHOT`, mit `draft` → `1.0.0-SNAPSHOT-draft`.
 * Es wird **kein `latest`** erzeugt.
@@ -278,9 +288,59 @@ Credentials stehen **nie in der POM**, sondern im `<server>` mit der ID `registr
   – jeweils **zusätzlich** zu den JVM-Defaults. TLS-Prüfung lässt sich nicht abschalten.
 * `allowPlainHttp` nur für lokale Test-Registries (loggt eine Warnung).
 
-## 9. Parameter-Referenz
+## 9. Git-Deploy für `npx skills` (`agent-skills:git-deploy`)
 
-Gemeinsam für alle Goals:
+```xml
+<configuration>
+    <gitUrl>https://git.example.com/ai/skills.git</gitUrl>
+    <gitServerId>my-git</gitServerId>
+</configuration>
+```
+
+Beim `deploy` klont das Goal den Branch `gitBranch` (default `main`, wird bei Bedarf angelegt), ersetzt die
+Verzeichnisse `<gitDirectory>/<skill>/` (default `skills/`) durch die Dateien der Images – inkl. generierter
+`skill.yaml` und Executable-Bits – und committet, falls sich etwas geändert hat. Alle übrigen Dateien bleiben,
+mehrere Projekte können also in dasselbe Repository veröffentlichen. Der Commit wird mit
+`<artifactId>-<version>` getaggt:
+
+```shell
+npx skills add https://git.example.com/ai/skills.git#my-skills-1.2.0 --skill nexus-test   # gepinnt
+npx skills add https://git.example.com/ai/skills.git --skill nexus-test                   # folgt main
+npx skills update                                                                         # ungepinnte
+```
+
+* Nur Skills mit Status `published` werden deployt – `<gitStatuses>` wählt andere.
+* SNAPSHOTs werden nur deployt, wenn `gitSnapshotBranch` gesetzt ist – dorthin und **ohne Tag**.
+* Existiert der Tag schon (z. B. wiederholter Release-Build), bleibt er mit Warnung unverändert; der Branch
+  wird trotzdem aktualisiert.
+* Wurde der Push abgelehnt, weil ein anderer Build dazwischen gepusht hat, wird auf einem frischen Klon bis zu
+  `gitAttempts`-mal (default 3) wiederholt.
+* Credentials aus dem `<server>` `gitServerId` der `settings.xml` (Benutzer/Passwort oder Access-Token).
+  Nur `https`- und `file`-URLs, **kein ssh**.
+* Nur Git, keine Registry: `mvn deploy -Dskill.push.skip=true`.
+
+## 10. Skill-Jar (`agent-skills:archive`)
+
+Das Jar eines einzelnen Skills und das Jar aller Skills haben dasselbe Layout:
+
+```text
+nexus-test/                                     # Skill-Dateien, exakt wie im Layer
+nexus-test/SKILL.md                             #   Modes 0644, 0755 für Verzeichnisse und Executables
+nexus-test/skill.yaml
+nexus-test/scripts/run.sh
+META-INF/agent-skills/nexus-test/manifest.json  # Manifest des Images, byte-identisch
+META-INF/agent-skills/nexus-test/config.json    # Config des Images, byte-identisch
+```
+
+* Verzeichnis = `name` des Skills: Entpacken nach `.claude/skills` (z. B. `dependency:unpack`) ergibt
+  `.claude/skills/nexus-test/SKILL.md`.
+* Reproduzierbar: Einträge nach Pfad sortiert, Zeitstempel = `created`-Annotation des Images, kein `MANIFEST.MF`.
+* Der Digest des Images bleibt erhalten (SHA-256 von `manifest.json`) – ein aus der Registry gelockter Skill
+  kann aus dem Maven-Repository installiert werden und umgekehrt.
+
+## 11. Parameter-Referenz
+
+Gemeinsam für alle Produzenten-Goals:
 
 | Parameter             | Property                | Default                                 |
 |-----------------------|-------------------------|-----------------------------------------|
@@ -310,35 +370,73 @@ Nur `test`:
 | `skip`             | `skill.test.skip`             | `false`                                       |
 
 Nur `archive`: `archiveFile` (`skill.archive.file`,
-default `${project.build.directory}/${project.build.finalName}.tar`).
+default `${project.build.directory}/${project.build.finalName}.jar`); Einzel-Jars liegen daneben
+(`target/<finalName>-nexus-test.jar`).
 
 Nur `push`:
 
-| Parameter            | Property                        | Default |
-|----------------------|---------------------------------|---------|
-| `registry`           | `skill.registry`                |         |
-| `repository`         | `skill.repository`              |         |
-| `registryServerId`   | `skill.registryServerId`        |         |
-| `verifyDigest`       | `skill.push.verifyDigest`       | `true`  |
-| `caCertificates`     |                                 |         |
-| `trustStore`         | `skill.push.trustStore`         |         |
-| `trustStorePassword` | `skill.push.trustStorePassword` |         |
+| Parameter            | Property                        | Default     |
+|----------------------|---------------------------------|-------------|
+| `registry`           | `skill.registry`                |             |
+| `repository`         | `skill.repository`              |             |
+| `registryServerId`   | `skill.registryServerId`        |             |
+| `verifyDigest`       | `skill.push.verifyDigest`       | `true`      |
+| `caCertificates`     |                                 |             |
+| `trustStore`         | `skill.push.trustStore`         |             |
+| `trustStorePassword` | `skill.push.trustStorePassword` |             |
 | `trustStoreType`     | `skill.push.trustStoreType`     | JVM-Default |
-| `allowPlainHttp`     | `skill.push.allowPlainHttp`     | `false` |
-| `skip`               | `skill.push.skip`               | `false` |
+| `allowPlainHttp`     | `skill.push.allowPlainHttp`     | `false`     |
+| `skip`               | `skill.push.skip`               | `false`     |
 
-## 10. Typische Aufrufe
+Nur `git-deploy`:
+
+| Parameter           | Property                   | Default                                            |
+|---------------------|----------------------------|----------------------------------------------------|
+| `gitUrl`            | `skill.git.url`            | – (ohne: Goal tut nichts)                          |
+| `gitServerId`       | `skill.git.serverId`       |                                                    |
+| `gitBranch`         | `skill.git.branch`         | `main`                                             |
+| `gitSnapshotBranch` | `skill.git.snapshotBranch` | – (ohne: SNAPSHOTs übersprungen)                   |
+| `gitDirectory`      | `skill.git.directory`      | `skills`                                           |
+| `gitTag`            | `skill.git.tag`            | `${project.artifactId}-${project.version}`, leer = kein Tag |
+| `gitCommitMessage`  | `skill.git.commitMessage`  | `release ${project.artifactId} ${project.version}` |
+| `gitStatuses`       |                            | `published`                                        |
+| `gitAuthorName`     | `skill.git.authorName`     | `agent-skills-maven-plugin`                        |
+| `gitAuthorEmail`    | `skill.git.authorEmail`    | `agent-skills-maven-plugin@noreply.invalid`        |
+| `gitAttempts`       | `skill.git.attempts`       | `3`                                                |
+| `gitWorkDirectory`  | `skill.git.workDirectory`  | `${project.build.directory}/skill-git` (wird vorher gelöscht) |
+| `skip`              | `skill.git.skip`           | `false`                                            |
+
+## 12. Typische Aufrufe
 
 | Ziel                                     | Aufruf                                          |
 |------------------------------------------|-------------------------------------------------|
 | Skills prüfen und bauen, nichts pushen   | `mvn verify`                                    |
 | lokal ins Maven-Repo installieren        | `mvn install`                                   |
-| in CI bauen und pushen (Packaging skill) | `mvn deploy`                                    |
-| deploy ohne OCI-Push                     | `mvn deploy -Dskill.push.skip=true`             |
-| gezielt pushen                           | `mvn package agent-skills:push`                   |
+| in CI bauen und veröffentlichen          | `mvn deploy`                                    |
+| deploy ohne OCI-Push (z. B. nur Git)     | `mvn deploy -Dskill.push.skip=true`             |
+| deploy ohne git-deploy                   | `mvn deploy -Dskill.git.skip=true`              |
+| gezielt pushen                           | `mvn package agent-skills:push`                 |
 | schnell bauen ohne Tests                 | `mvn package -DskipTests`                       |
 
-## 11. Image-Format (Kurzfassung)
+## 13. Konsum ohne Maven (skillctl, npx skills)
+
+Wie Konsumenten ohne Maven an die veröffentlichten Skills kommen – nur das, was die Kompatibilitätstests des
+Plugins abdecken (gepinnt: skillctl 0.7.2, `npx skills`). Alles Weitere steht in der Doku der jeweiligen Tools.
+Mit Maven installiert man über [[agent-skills-maven-plugin-install]].
+
+```shell
+skillctl pull nexus.eitco.de/docker-cicd-prerelease/eitco/cicd/nexus-test:0.0.1         # published
+skillctl pull nexus.eitco.de/docker-cicd-prerelease/eitco/cicd/nexus-test:0.0.1-draft   # Status draft
+```
+
+* Referenz = Push-Ziel `<registry>/<repository>/<name>:<tag>`, Tag nach Abschnitt 6 – es gibt **kein `latest`**,
+  die Version muss also immer angegeben werden.
+* skillctl 0.7 entpackt Dateien **ohne Executable-Bits** (auch bei eigenen Images) – Skripte im Skill per
+  `bash scripts/…` aufrufen lassen oder nach dem Pull `chmod +x` setzen.
+* Unter Windows vertraut skillctl nur dem Zertifikatsspeicher des Systems – eine interne CA muss dort installiert sein.
+* `npx skills` installiert aus dem Git-Repository von `git-deploy`, siehe Abschnitt 9.
+
+## 14. Image-Format (Kurzfassung)
 
 * Ein `tar+gzip`-Layer mit allen ausgewählten Dateien (generierte `SKILL.md` und `skill.yaml` statt der Quellen).
 * Normalisiert: Einträge nach UTF-8-Pfad sortiert, uid/gid `0`, Mode `0644` (`0755` für Verzeichnisse
@@ -347,9 +445,11 @@ Nur `push`:
 * Config `linux/amd64`; Manifest-Annotationen u. a. `io.skillimage.status`, `io.skillimage.wordcount`,
   `org.opencontainers.image.{created,description,title,vendor,version}`.
 
-## 12. Stolpersteine
+## 15. Stolpersteine
 
 * **`<extensions>true</extensions>` vergessen** → Maven kennt das Packaging `skill` nicht.
+* **Alte Koordinaten** `de.eitco.cicd.ociskills:oci-skills-maven-plugin` / Prefix `oci-skills` → seit 0.0.5
+  `de.eitco.cicd.agentskills:agent-skills-maven-plugin` / `agent-skills`.
 * **`namespace` fehlt** → `build`/`test` schlagen fehl (Pflichtparameter).
 * **`namespace`/`version` im Frontmatter** → Validierungsfehler; im Plugin konfigurieren.
 * **`name` ≠ Verzeichnisname** → Validierungsfehler.
@@ -363,3 +463,7 @@ Nur `push`:
 * **`push` ohne vorheriges `build`** → kein Layout in `target/skill-oci`; erst `package` laufen lassen.
 * **Repository-Pfad mit Großbuchstaben** → ungültiges Push-Ziel; nur Kleinbuchstaben, Ziffern und `.`, `_`, `-`.
 * **Registry mit Schema** (`https://…`) wird toleriert und entfernt, ein Pfad gehört aber in `<repository>`.
+* **git-deploy tut nichts** → `gitUrl` fehlt, Skill hat nicht Status `published` (`<gitStatuses>`), oder
+  SNAPSHOT-Build ohne `gitSnapshotBranch`.
+* **`npx skills` ignoriert `#<tag>`** → auf selbstgehosteten Git-Servern muss die URL auf `.git` enden.
+* **ssh-URL für `gitUrl`** → nicht unterstützt, `https` (mit `gitServerId`) oder `file` verwenden.
