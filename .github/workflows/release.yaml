@@ -6,6 +6,10 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      # setup-java (in eitco/maven-release) creates the maven server 'github' with ${env.GITHUB_ACTOR}/${env.GITHUB_TOKEN}
+      # - the skills module uses it to push to ghcr.io
+      GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN_GITHUB_PACKAGES }}
     steps:
       - uses: eitco/maven-release@0.0.2
         with:

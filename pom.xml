@@ -150,6 +150,10 @@
                     <groupId>org.sonatype.central</groupId>
                     <artifactId>central-publishing-maven-plugin</artifactId>
                     <version>0.12.0</version>
+                    <configuration>
+                        <!-- don't block the remaining deploy steps (skills push to ghcr.io) until central has published -->
+                        <waitUntil>validated</waitUntil>
+                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
