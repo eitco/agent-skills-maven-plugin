@@ -10,7 +10,7 @@
 
     <groupId>de.eitco.cicd.agentskills</groupId>
     <artifactId>agent-skills-maven-plugin-parent</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>agent skills maven plugin parent</name>
